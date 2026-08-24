@@ -528,3 +528,26 @@ is why the pipeline stops at "prepared" and hands off a folder.
 
 With OCR in place, extraction can run from text instead of images: ~82k input
 tokens for the whole library, about **9× cheaper** than the image route.
+
+---
+
+## Contributing
+
+Setup, the extraction contract, and what the code expects of a change are in
+[CONTRIBUTING.md](CONTRIBUTING.md). Security-relevant behaviour — cookies, the
+local dashboard server, what leaves your machine — is in
+[SECURITY.md](SECURITY.md).
+
+## A note on Instagram
+
+This downloads media you have already saved to your own account, using either
+anonymous access or your own session. Bulk-fetching with your cookies is against
+Instagram's terms and is what gets accounts restricted, which is why cookies are
+opt-in, `prepare` throttles on purpose, and neither is something to work around.
+Downloaded posts remain the property of the people who made them; this builds a
+private index of what you saved, not a redistribution of it.
+
+## License
+
+[Apache License 2.0](LICENSE) — permissive, with an explicit patent grant.
+Copyright 2026 Manas Taneja.
