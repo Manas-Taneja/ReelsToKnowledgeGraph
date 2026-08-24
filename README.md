@@ -32,9 +32,10 @@ faster-whisper; nothing else changes.
 ## Install
 
 ```bash
-brew install ffmpeg yt-dlp gallery-dl
+git clone https://github.com/Manas-Taneja/ReelsToKnowledgeGraph.git
+cd ReelsToKnowledgeGraph
 
-cd reels-kb
+brew install ffmpeg yt-dlp gallery-dl
 python3.11 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 

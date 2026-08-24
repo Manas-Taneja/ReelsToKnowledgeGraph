@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Use [private vulnerability reporting](https://github.com/Manas-Taneja/reels-kb/security/advisories/new)
+Use [private vulnerability reporting](https://github.com/Manas-Taneja/ReelsToKnowledgeGraph/security/advisories/new)
 rather than a public issue. I'll acknowledge within a week.
 
 ## What this tool touches
