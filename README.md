@@ -30,7 +30,7 @@ over a folder they can read. There is no LLM call anywhere in `rkb/`.
 Every tool and topic that connects two or more posts becomes a hub note, and the
 hubs link to each other by co-occurrence. Nothing here was filed by hand.
 
-<video src="docs/assets/graph.mp4" controls muted width="100%"><img alt="The same graph, animated" src="docs/assets/graph.jpg"></video>
+![The same concept graph in motion, nodes drifting as the force-directed layout settles](docs/assets/graph.gif)
 
 The layout is force-directed, so the clusters above are not a drawing — they are
 where the nodes come to rest once every co-occurrence edge is pulling at once.
