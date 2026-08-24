@@ -1,0 +1,10 @@
+# Python deps. Install into .venv with python3.11:
+#   python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+mlx-whisper                 # local transcription on Apple Silicon GPU
+pyobjc-framework-Vision     # on-device OCR (macOS Vision framework)
+pyobjc-framework-Quartz     # image loading for Vision
+pyyaml                      # read Obsidian note properties back (rkb sync)
+
+# System deps, via homebrew:
+#   brew install ffmpeg yt-dlp gallery-dl

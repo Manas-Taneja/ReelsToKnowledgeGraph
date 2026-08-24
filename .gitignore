@@ -1,0 +1,27 @@
+# Everything derived from your saved posts stays local. `rkb init` recreates the
+# directories, and the pipeline rebuilds the rest from a fresh Meta export.
+
+# The library itself: the database, its write-ahead log (which holds recent
+# pages in the clear, so `reels.db` alone is not enough), the downloaded media,
+# and the raw Instagram export.
+data/
+
+# The vault and the dashboard are generated views of that database — same
+# content, different shape. `rkb vault` and `rkb dashboard` rebuild them.
+vault/
+dashboard.html
+
+# Local Obsidian workspace state: window layout, absolute paths, graph settings.
+.obsidian/
+
+# Cookies are a live Instagram session. They belong outside the repo entirely
+# (RKB_COOKIES points at them); this is a backstop, not the arrangement.
+*cookies*.txt
+.env
+.env.*
+
+.venv/
+__pycache__/
+*.pyc
+batch*.json
+.DS_Store

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Thin shim so you can run `./bin/rkb ...` without activating the venv.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$ROOT/.venv/bin/python" -m rkb.cli "$@"
