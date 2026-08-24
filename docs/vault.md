@@ -20,6 +20,11 @@ vault/
   attachments/      every image, hard-linked from data/media
 ```
 
+<picture><img alt="Obsidian Bases table view of the library: 48 rows with name, author, link count, tools and tags columns" src="assets/library-base.jpg"></picture>
+
+`Library.base` is written once and then yours — re-sort, re-filter and re-column
+it freely; `rkb vault` never overwrites a `.base` file it has already created.
+
 ## The two flat tables
 
 `Repos.md` and `Prompts.md` answer the two questions a reel library actually

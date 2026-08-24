@@ -12,32 +12,28 @@ withheld from the audio, and sits on screen the whole time.
 So every post gets a transcript **and** OCR of every frame or slide, and
 extraction reads them together.
 
-```mermaid
-flowchart TD
-    E["Meta export<br/>saved_posts.json"] --> I["rkb import"]
-    I --> PR["rkb prepare"]
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pipeline-dark.svg">
+  <img alt="Pipeline: a Meta export runs through yt-dlp/gallery-dl, ffmpeg, mlx-whisper and Apple Vision entirely on your machine, emits one context.md per post, is read by Claude Code and verified by rkb record into SQLite, then fans out to rkb search, rkb triage and rkb vault (which feeds rkb graph)." src="docs/assets/pipeline.svg">
+</picture>
 
-    subgraph local ["runs entirely on your machine — no API, no quota"]
-        direction TB
-        PR --> M["yt-dlp · gallery-dl"]
-        M --> F["ffmpeg frame sampling"]
-        F --> W["mlx-whisper transcript"]
-        W --> O["Apple Vision OCR"]
-    end
+The dashed boundary is the point: everything up to `context.md` runs on your
+machine with no API and no quota, and extraction is a person driving an agent
+over a folder they can read. There is no LLM call anywhere in `rkb/`.
 
-    O --> C["context.md<br/>one self-contained folder per post"]
-    C --> CC["Claude Code reads it<br/>summary · tools · links · tags"]
-    CC --> REC["rkb record<br/>every URL checked before it lands"]
-    REC --> DB[("SQLite + FTS5")]
-    DB --> SE["rkb search"]
-    DB --> TR["rkb triage → dashboard<br/>only the posts with no link"]
-    DB --> VA["rkb vault → Obsidian"]
-    VA --> GR["rkb graph<br/>concept map, coloured by cluster"]
-```
+---
 
-The split in the middle is deliberate: everything up to `context.md` is local and
-free, and extraction is a person driving an agent over a folder they can read.
-There is no LLM call anywhere in `rkb/`.
+## What you end up with
+
+<picture><img alt="Obsidian graph view showing 52 concept nodes in four coloured clusters, with labels like Claude Code, automation, agents, self-hosted and local-llm" src="docs/assets/graph.jpg"></picture>
+
+Every tool and topic that connects two or more posts becomes a hub note, and the
+hubs link to each other by co-occurrence. Nothing here was filed by hand.
+
+<picture><img alt="An Obsidian note for the topic 'automation', showing a Related line linking to agents, n8n, lead-generation, self-hosted, debugging, Claude and architecture, above a list of fifteen posts with their creators" src="docs/assets/hub-note.png"></picture>
+
+Open one and you get every post that touched it, strongest associations first —
+which is the answer to *"there's no relation among each reel"*.
 
 ---
 
