@@ -4,8 +4,9 @@ import json
 import sys
 from pathlib import Path
 
-from . import (config, dashboard, db, graph, importer, ocr, prepare, record,
-               review, search, serve, triage, vault, vaultsync, verify)
+from . import (config, dashboard, db, graph, importer, ingest, ocr, platforms,
+               prepare, record, review, search, serve, triage, vault,
+               vaultsync, verify)
 
 
 def cmd_init(a):
@@ -24,6 +25,32 @@ def cmd_import(a):
     print(json.dumps(importer.import_paths(paths), indent=2))
 
 
+def cmd_add(a):
+    r = ingest.add_urls(a.urls, collection=a.collection)
+    if r.get("unrecognised"):
+        print("no Instagram or X post link in that. Recognised shapes:\n"
+              "  https://www.instagram.com/reel/<code>/\n"
+              "  https://x.com/<handle>/status/<id>")
+        return
+    for p in r["added"]:
+        print(f"added   {p['platform']:<10} {p['url']}")
+    for p in r["known"]:
+        print(f"already {p['platform']:<10} {p['url']}")
+    if r["added"]:
+        print(f"\n{len(r['added'])} new — run `rkb prepare` to download them.")
+
+
+def cmd_bookmarks(a):
+    r = ingest.bookmarks(limit=a.limit)
+    for p in r["added"]:
+        print(f"added   {p['url']}")
+    print(f"\nscanned {r['scanned']}, added {len(r['added'])}, "
+          f"already had {len(r['known'])}")
+    if r["added"]:
+        print("run `rkb prepare --platform twitter` to download them.")
+
+
+
 def cmd_collections(a):
     con = db.init()
     rows = con.execute(
@@ -40,7 +67,8 @@ def cmd_collections(a):
 
 
 def cmd_prepare(a):
-    r = prepare.prepare_batch(limit=a.limit, retry=a.retry, kind=a.kind)
+    r = prepare.prepare_batch(limit=a.limit, retry=a.retry, kind=a.kind,
+                              platform=a.platform)
     print(f"\nprepared {len(r['prepared'])}, failed {len(r['failed'])}")
     for sc, err in r["failed"]:
         print(f"  {sc}: {err}")
@@ -49,7 +77,8 @@ def cmd_prepare(a):
 def cmd_pending(a):
     con = db.init()
     rows = con.execute(
-        "SELECT shortcode, url, media_kind, media_dir, length(transcript) AS tlen "
+        "SELECT shortcode, url, platform, media_kind, media_dir, "
+        "       length(transcript) AS tlen "
         "FROM posts WHERE status='prepared' ORDER BY saved_at DESC LIMIT ?",
         (a.limit,),
     ).fetchall()
@@ -62,8 +91,14 @@ def cmd_pending(a):
     print(f"{len(rows)} post(s) ready for extraction:\n")
     for r in rows:
         frames = len(list((Path(r["media_dir"]) / "frames").glob("*.jpg")))
-        print(f"  {r['shortcode']}  [{r['media_kind']}, {frames} frames, "
-              f"{r['tlen'] or 0} transcript chars]")
+        # A text-only tweet has no frames and no speech by nature, so saying
+        # "0 frames" alongside the others would read as a botched download.
+        if r["media_kind"] == "text":
+            shape = "text only — the post IS the text in context.md"
+        else:
+            shape = (f"{r['media_kind']}, {frames} frames, "
+                     f"{r['tlen'] or 0} transcript chars")
+        print(f"  {r['shortcode']:<20} [{r['platform']}: {shape}]")
         print(f"    {r['media_dir']}/context.md")
 
 
@@ -88,12 +123,16 @@ def cmd_search(a):
 def cmd_status(a):
     con = db.init()
     rows = con.execute(
-        "SELECT status, COUNT(*) n FROM posts GROUP BY status ORDER BY n DESC"
+        "SELECT platform, status, COUNT(*) n FROM posts "
+        "GROUP BY platform, status ORDER BY platform, n DESC"
     ).fetchall()
     total = sum(r["n"] for r in rows)
     print(f"{total} posts in the knowledge base")
-    for r in rows:
-        print(f"  {r['status']:<10} {r['n']}")
+    for plat in sorted({r["platform"] for r in rows}):
+        mine = [r for r in rows if r["platform"] == plat]
+        print(f"  {platforms.get(plat).label} ({sum(r['n'] for r in mine)})")
+        for r in mine:
+            print(f"    {r['status']:<10} {r['n']}")
     fails = con.execute(
         "SELECT shortcode, error FROM posts WHERE status='failed' LIMIT 10"
     ).fetchall()
@@ -180,7 +219,7 @@ def cmd_sync(a):
 
 
 def _watch_vault(out):
-    print(f"watching {vault.vault_dir(out) / vault.REELS} — edit `review` in "
+    print(f"watching {vault.vault_dir(out)} — edit `review` in "
           f"Obsidian and it saves itself.\nCtrl-C to stop.\n")
 
     def on_change(r):
@@ -285,14 +324,28 @@ def main(argv=None):
                         "saved to data/excluded_collections.txt")
     s.set_defaults(fn=cmd_import)
 
+    s = sub.add_parser("add", help="save one or more post links (Instagram or X)")
+    s.add_argument("urls", nargs="+", metavar="URL",
+                   help="links, or any text containing them")
+    s.add_argument("--collection", default=ingest.VIA_BOT,
+                   help=f"what to file them under (default: {ingest.VIA_BOT})")
+    s.set_defaults(fn=cmd_add)
+
+    s = sub.add_parser("bookmarks", help="sweep your live X bookmark feed")
+    s.add_argument("-n", "--limit", type=int, default=None,
+                   help=f"how far back to walk (default: {config.X_BOOKMARK_LIMIT})")
+    s.set_defaults(fn=cmd_bookmarks)
+
     sub.add_parser("collections", help="post counts per collection"
                    ).set_defaults(fn=cmd_collections)
 
     s = sub.add_parser("prepare", help="download + frame + transcribe a batch")
     s.add_argument("-n", "--limit", type=int, default=25)
     s.add_argument("--retry", action="store_true", help="also retry failed posts")
-    s.add_argument("--kind", choices=("reel", "post"),
-                   help="only reels (no login needed) or only image posts")
+    s.add_argument("--kind", choices=("reel", "post", "tweet"),
+                   help="only reels (no login needed), image posts, or tweets")
+    s.add_argument("--platform", choices=tuple(platforms.ALL),
+                   help="only posts from one source")
     s.set_defaults(fn=cmd_prepare)
 
     s = sub.add_parser("pending", help="list posts awaiting extraction")

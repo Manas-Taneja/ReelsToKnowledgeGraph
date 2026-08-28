@@ -3,9 +3,10 @@
 CREATE TABLE IF NOT EXISTS posts (
   shortcode   TEXT PRIMARY KEY,          -- e.g. Dbm7X5IAuEe
   url         TEXT NOT NULL,
-  kind        TEXT NOT NULL,             -- reel | post  (from the URL shape)
+  kind        TEXT NOT NULL,             -- reel | post | tweet  (from the URL shape)
+  platform    TEXT NOT NULL DEFAULT 'instagram',  -- instagram | twitter
   saved_at    TEXT,                      -- ISO8601, from the Meta export timestamp
-  media_kind  TEXT,                      -- video | images  (resolved at acquire time)
+  media_kind  TEXT,                      -- video | images | text  (resolved at acquire time)
   caption     TEXT,
   collection  TEXT,                      -- your own Instagram collection, if filed
   author      TEXT,                      -- creator's @username

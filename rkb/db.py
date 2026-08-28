@@ -21,6 +21,9 @@ _ADDED_EXTRACTION_COLUMNS = {"prompt": "TEXT"}
 
 _ADDED_COLUMNS = {
     "reviewed": "TEXT",          # 'kept' | 'archived' -- set by `rkb review`
+    # Which service the post came from. Backfills to 'instagram' because every
+    # row that predates a second source came from there.
+    "platform": "TEXT NOT NULL DEFAULT 'instagram'",
     "collection": "TEXT",
     "author": "TEXT",
     "author_link": "TEXT",
@@ -57,12 +60,12 @@ def _migrate(con):
             reindex(con, r["shortcode"])
 
 
-def upsert_post(con, shortcode, url, kind, saved_at=None):
-    """Insert a post from the export. Never clobbers work already done on it."""
+def upsert_post(con, shortcode, url, kind, saved_at=None, platform="instagram"):
+    """Insert a saved post. Never clobbers work already done on it."""
     cur = con.execute(
-        "INSERT INTO posts (shortcode, url, kind, saved_at) VALUES (?,?,?,?) "
-        "ON CONFLICT(shortcode) DO NOTHING",
-        (shortcode, url, kind, saved_at),
+        "INSERT INTO posts (shortcode, url, kind, saved_at, platform) "
+        "VALUES (?,?,?,?,?) ON CONFLICT(shortcode) DO NOTHING",
+        (shortcode, url, kind, saved_at, platform),
     )
     return cur.rowcount == 1
 
