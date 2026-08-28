@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
 DATA = ROOT / "data"
 EXPORT_DIR = DATA / "export"
 MEDIA_DIR = DATA / "media"
@@ -19,6 +20,17 @@ BROWSER = os.environ.get("RKB_BROWSER", "").strip()
 # browser extension. More reliable than RKB_BROWSER on macOS, since Safari's
 # cookie jar needs Full Disk Access granted to your terminal.
 COOKIES_FILE = os.environ.get("RKB_COOKIES", "").strip()
+
+# X is not Instagram: it serves a logged-out client almost nothing, so cookies
+# there are required rather than opt-in. These override the two above for X
+# only, which is what you want when the two accounts live in different
+# browsers. Unset, they fall back to RKB_BROWSER / RKB_COOKIES.
+X_BROWSER = os.environ.get("RKB_X_BROWSER", "").strip()
+X_COOKIES_FILE = os.environ.get("RKB_X_COOKIES", "").strip()
+
+# How many bookmarks `rkb bookmarks` walks back through in one sweep. The feed
+# is newest-first, so a small number is the usual "what did I save this week".
+X_BOOKMARK_LIMIT = int(os.environ.get("RKB_X_BOOKMARK_LIMIT", "100"))
 
 # Whisper model. large-v3-turbo is the sweet spot on Apple Silicon; use
 # RKB_WHISPER=mlx-community/whisper-small-mlx if you want it even faster.

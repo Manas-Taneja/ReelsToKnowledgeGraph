@@ -57,13 +57,18 @@ def _decision(fm):
     return None, None
 
 
+def _note_paths(out=None):
+    """Every source note in the vault, across all platform folders."""
+    root = vault.vault_dir(out)
+    return sorted(p for folder in vault.POST_FOLDERS
+                  for p in (root / folder).glob("*.md")
+                  if (root / folder).is_dir())
+
+
 def collect(out=None):
-    """Walk the vault's reel notes and gather everything you decided."""
-    reels = vault.vault_dir(out) / vault.REELS
+    """Walk the vault's post notes and gather everything you decided."""
     decisions, problems = {}, []
-    if not reels.is_dir():
-        return decisions, problems
-    for path in sorted(reels.glob("*.md")):
+    for path in _note_paths(out):
         try:
             fm = frontmatter(path)
         except yaml.YAMLError as e:
@@ -99,10 +104,9 @@ def watch(out=None, interval=2.0, on_change=None):
     but the second pass finds `review: done` and nothing to apply, so the loop
     settles instead of running away.
     """
-    reels = vault.vault_dir(out) / vault.REELS
     seen, reported = {}, None
     while True:
-        now = {p: p.stat().st_mtime for p in reels.glob("*.md")}
+        now = {p: p.stat().st_mtime for p in _note_paths(out)}
         if now != seen:
             seen = now
             result = sync(out)
@@ -113,5 +117,5 @@ def watch(out=None, interval=2.0, on_change=None):
             if worth_saying:
                 if on_change:
                     on_change(result)
-                seen = {p: p.stat().st_mtime for p in reels.glob("*.md")}
+                seen = {p: p.stat().st_mtime for p in _note_paths(out)}
         time.sleep(interval)

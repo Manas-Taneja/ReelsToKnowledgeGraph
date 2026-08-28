@@ -1,8 +1,8 @@
 # Reels To Knowledge Base
 
-Turns saved Instagram reels and carousels into a searchable, actionable
-knowledge base: SQLite + FTS5 for the pipeline, an Obsidian vault as the
-readable view.
+Turns saved Instagram reels and carousels, and saved X posts, into a
+searchable, actionable knowledge base: SQLite + FTS5 for the pipeline, an
+Obsidian vault as the readable view.
 
 ## Why the pipeline is split
 
@@ -19,13 +19,33 @@ Claude Code subscription rather than per-token API billing.
 SQLite is the source of truth. The vault is a generated view, so `rkb vault` is
 safe to re-run after every batch.
 
+## Where posts come from
+
+Three doors, all landing in the same `posts` table at status `new`:
+
+```
+rkb import      the Meta export           (Instagram, bulk backfill)
+rkb bookmarks   the live X bookmark feed  (X, bulk, needs cookies)
+rkb add <url>   one link, any platform    (either, no export needed)
+```
+
+`add` never downloads. It records the row and stops; `rkb prepare` is a
+separate, deliberate act, because saving costs milliseconds and preparing costs
+a video download, ffmpeg, whisper and OCR on this machine.
+
+`rkb/platforms.py` is the only place a platform is described. Adding a third
+source is a row in that table plus a branch in `acquire`, not a new pipeline.
+
 ## Your job: the extraction pass
 
 When asked to extract, process or ingest a batch:
 
 1. `./bin/rkb pending -n 25` — list posts awaiting extraction.
 2. For each, read `<media_dir>/context.md`. It contains the caption, the
-   transcript, and **the verbatim OCR text of every frame or slide**.
+   transcript, and **the verbatim OCR text of every frame or slide**. A
+   text-only X post has none of those: `media_kind` is `text`, and the tweet
+   text under `## Tweet text` is the entire post. There are no frames to open
+   and nothing is missing — do not file it as under-prepared.
 3. Read images from `<media_dir>/frames/` only when the OCR is ambiguous — a
    blurred URL, a layout you can't reconstruct from text alone. OCR is cheaper
    and more literal than a vision read; prefer it.
@@ -127,8 +147,11 @@ Batch 20–30 posts per session.
 ./bin/rkb init                    # create db + folders
 ./bin/rkb import [paths...]       # load the Meta export (default: data/)
 ./bin/rkb import --exclude food   # never import a collection
+./bin/rkb add <url> [...]         # save a link (Instagram or X), no export
+./bin/rkb bookmarks [-n 100]      # sweep the live X bookmark feed
 ./bin/rkb collections             # counts per collection
 ./bin/rkb prepare -n 25 [--retry] # download + frames + transcribe + OCR
+./bin/rkb prepare --platform twitter   # ...one source only (instagram|twitter)
 ./bin/rkb ocr [--force] [codes]   # re-read text off slides / dense video frames
 ./bin/rkb pending -n 25           # what's awaiting extraction
 ./bin/rkb record batch.json       # write results back (validates links)
@@ -146,7 +169,16 @@ Batch 20–30 posts per session.
 
 ## Notes
 
-- **Cookies are opt-in and usually unnecessary.** Reels download anonymously,
+- **On X, cookies are not optional.** X serves a logged-out client almost
+  nothing, so `bookmarks` refuses to run without them and `prepare` fails with
+  that hint rather than a generic download error. `RKB_X_BROWSER` /
+  `RKB_X_COOKIES` override the Instagram settings for X only, which is what you
+  want when the two accounts live in different browsers; unset, they fall back
+  to `RKB_BROWSER` / `RKB_COOKIES`.
+- **A tweet with no media is not a failed download.** `media_kind='text'`, no
+  frames, no transcript, no OCR — the text is the post. `prepare` only raises
+  when a tweet has neither media nor text.
+- **Instagram cookies are opt-in and usually unnecessary.** Reels download anonymously,
   which keeps the account out of the loop entirely. Image and carousel `/p/`
   posts do hit a login wall — for those, grant the terminal Full Disk Access and
   use `RKB_BROWSER=safari`. No browser extension needed.
@@ -161,6 +193,12 @@ Batch 20–30 posts per session.
   breaks. A carousel's gallery comes from the downloaded slides, never from
   `frames/`, which is capped at `MAX_FRAMES` and would drop over half the
   slides on the longer listicle posts.
+- **Source notes are filed by platform**: `vault/Reels/` for Instagram,
+  `vault/Tweets/` for X, from `platforms.folders()`. The split is cosmetic —
+  `Tools/` and `Topics/` hubs span both, so the concept map stays one map. Note
+  titles are unique across the whole library, not per folder. Every post note
+  still carries `reel: true`, which is what `Library.base` filters on; read it
+  as "an rkb post note", and filter on `platform` when you want one source.
 - `vault/Repos.md` and `vault/Prompts.md` are derived views, not stores.
   `Repos.md` normalises every `github.com` URL to `owner/repo`, so a repo seen
   in three posts is one row. `Prompts.md` is *kept, and carrying no payload

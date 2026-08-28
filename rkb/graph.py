@@ -20,8 +20,11 @@ from . import concepts, config, db, vault
 # Repos.md and Prompts.md link to nearly every post, so left in they would draw
 # as two enormous hubs and undo the thinning below. They are tables to read, not
 # concepts to place.
-HIDE = ['-path:"Reels/"', '-path:"Authors/"', '-path:"Index"',
-        '-path:"Repos.md"', '-path:"Prompts.md"', '-path:"attachments/"']
+# The source-note folders are listed by the platform registry, so adding a
+# platform does not silently leave its notes in the graph as a second cloud.
+HIDE = ([f'-path:"{f}/"' for f in vault.POST_FOLDERS]
+        + ['-path:"Authors/"', '-path:"Index"',
+           '-path:"Repos.md"', '-path:"Prompts.md"', '-path:"attachments/"'])
 
 # One colour per detected cluster, biggest first. Picked to stay distinguishable
 # on both a light and a dark canvas, and to stay apart from each other for the

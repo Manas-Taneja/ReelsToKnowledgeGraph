@@ -16,12 +16,18 @@ from pathlib import Path
 
 import yaml
 
-from . import concepts, config, db, triage
+from . import concepts, config, db, platforms, triage
 
 MARKER = "<!-- rkb:end · your own notes below this line survive regeneration -->"
 STAMP = "rkb_generated"          # frontmatter flag: safe for rkb to delete/rewrite
 
-REELS, TOOLS, TOPICS, AUTHORS = "Reels", "Tools", "Topics", "Authors"
+TOOLS, TOPICS, AUTHORS = "Tools", "Topics", "Authors"
+
+# Source notes live in a folder named for where the post came from -- Reels/
+# for Instagram, Tweets/ for X. The folder is cosmetic: Tools/ and Topics/ hubs
+# span every platform, so the concept map stays one map. What is split is only
+# the pile of source notes, which is the pile you browse by hand.
+POST_FOLDERS = platforms.folders()
 ATTACH = "attachments"
 
 # Obsidian chokes on these in filenames and wikilinks.
@@ -262,9 +268,15 @@ def _reel_note(row, title, shots, carry=None, hubs=None):
     word = kept.get("review", "")
     review_val = word if pending and word and word.lower() != "done" else "pending"
 
+    plat = platforms.get(row.get("platform"))
     fm = _frontmatter({
         "shortcode": row["shortcode"],
-        "reel": True,          # what the .base views filter on
+        # `reel` is what Library.base filters on, and a .base is written once
+        # and then yours to tune -- so this stays true for a tweet too. Read it
+        # as "an rkb post note", not as "a video from Instagram". `platform` is
+        # the field to filter on when you want one source.
+        "reel": True,
+        "platform": plat.key,
         # An un-extracted post has never been judged, so it is neither in the
         # queue nor decided -- it gets no `review` property at all.
         "review": (review_val if pending
@@ -325,7 +337,7 @@ def _reel_note(row, title, shots, carry=None, hubs=None):
         body += ["## Topics", "",
                  " · ".join(_maybe(TOPICS, x) for x in tags), ""]
 
-    src = [f"[Open on Instagram]({row['url']})"]
+    src = [f"[Open on {plat.label}]({row['url']})"]
     if author:
         src.append(_maybe(AUTHORS, author, f"@{author}"))
     if row["collection"]:
@@ -367,7 +379,7 @@ def _hub_note(folder, name, rows, blurb, extra=None):
     if extra:
         body += extra + [""]
     for r in sorted(rows, key=lambda r: (r["saved_at"] or ""), reverse=True):
-        line = f"- [[{REELS}/{r['_title']}|{r['_title']}]]"
+        line = f"- [[{r['_folder']}/{r['_title']}|{r['_title']}]]"
         if r["author"]:
             line += f"  <small>@{r['author']}</small>"
         body.append(line)
@@ -434,7 +446,7 @@ def _reel_link(row, limit=46):
 
     The target keeps the full filename -- only the visible label is trimmed.
     """
-    return f"[[{REELS}/{_clean(row['_title'])}|{_cell(_clean(row['_title'], limit))}]]"
+    return f"[[{row['_folder']}/{_clean(row['_title'])}|{_cell(_clean(row['_title'], limit))}]]"
 
 
 def _hub_link(hubs, folder, name, label=None):
@@ -578,11 +590,11 @@ def _index_note(rows, tools, topics, out):
     b += ["", "## Every action worth taking", ""]
     for r in sorted(done, key=lambda r: (r["saved_at"] or ""), reverse=True):
         if r["actionable"]:
-            b.append(f"- [[{REELS}/{r['_title']}|{r['_title']}]]  \n  {r['actionable']}")
+            b.append(f"- [[{r['_folder']}/{r['_title']}|{r['_title']}]]  \n  {r['actionable']}")
 
     if todo:
         b += ["", "## Awaiting extraction", ""]
-        b += [f"- [[{REELS}/{r['_title']}|{r['_title']}]] (`{r['status']}`)"
+        b += [f"- [[{r['_folder']}/{r['_title']}|{r['_title']}]] (`{r['status']}`)"
               for r in todo]
     return "\n".join(b)
 
@@ -739,6 +751,7 @@ def build(out=None, rebuild_bases=False):
     taken = set()
     for r in rows:
         r["_title"] = _title(r, taken)
+        r["_folder"] = platforms.get(r.get("platform")).folder
 
     # The concept graph decides which hubs exist, which tags are really tools,
     # and what links to what -- so the vault and `rkb graph` never disagree.
@@ -775,11 +788,15 @@ def build(out=None, rebuild_bases=False):
     related, display = g["related"], g["display"]
 
     written = set()
-    reels_dir = out / REELS
-    stale = _generated_notes(reels_dir)
+    # Titles are unique across the whole library, not per folder, so a post
+    # that changes platform (or a folder that gets renamed) is pruned from
+    # wherever it used to live rather than left behind as a duplicate.
+    stale = {}
+    for folder in POST_FOLDERS:
+        stale.update(_generated_notes(out / folder))
 
     for r in rows:
-        path = reels_dir / f"{r['_title']}.md"
+        path = out / r["_folder"] / f"{r['_title']}.md"
         _write(path, _reel_note(r, r["_title"], shots.get(r["shortcode"], []),
                                 _carry(path), hubs))
         written.add(path)
