@@ -191,12 +191,18 @@ def import_paths(paths, exclude=None):
         url = f"https://www.instagram.com/{'reel' if row['kind'] == 'reel' else 'p'}/{sc}/"
         with con:
             new = db.upsert_post(con, sc, url, row["kind"], row["saved_at"])
-            # Export metadata is authoritative, but never clobber pipeline output.
+            # Export metadata is authoritative, but never clobber pipeline
+            # output -- and a later, thinner export that omits the collection
+            # or owner block must not null out what an earlier one supplied.
             con.execute(
-                "UPDATE posts SET collection=?, author=?, author_link=?, hashtags=?, "
+                "UPDATE posts SET collection=COALESCE(?, collection), "
+                "author=COALESCE(?, author), "
+                "author_link=COALESCE(?, author_link), "
+                "hashtags=COALESCE(?, hashtags), "
                 "caption=COALESCE(caption, ?) WHERE shortcode=?",
                 (col, row["author"], row["author_link"],
-                 json.dumps(row["hashtags"], ensure_ascii=False),
+                 json.dumps(row["hashtags"], ensure_ascii=False)
+                 if row["hashtags"] else None,
                  row["caption"], sc),
             )
         db.reindex(con, sc)

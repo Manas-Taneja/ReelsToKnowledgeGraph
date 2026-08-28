@@ -726,7 +726,12 @@ def build(out=None, rebuild_bases=False):
         "       e.actionable, e.confidence "
         "FROM posts p LEFT JOIN extractions e USING (shortcode) "
         "WHERE p.status != 'archived' "          # triaged out; still in the db
-        "ORDER BY p.saved_at DESC"
+        # Total order, not just saved_at: ties (and NULLs) would otherwise come
+        # back in an arbitrary order, and _title's collision suffix goes to
+        # whichever post it sees second. Flip that between runs and a note is
+        # renamed, the old path pruned as stale, and the notes you typed below
+        # the marker go with it.
+        "ORDER BY p.saved_at DESC, p.shortcode"
     ).fetchall()]
 
     shots = _attachments(rows, out)
