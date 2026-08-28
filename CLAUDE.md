@@ -26,12 +26,24 @@ Three doors, all landing in the same `posts` table at status `new`:
 ```
 rkb import      the Meta export           (Instagram, bulk backfill)
 rkb bookmarks   the live X bookmark feed  (X, bulk, needs cookies)
-rkb add <url>   one link, any platform    (either, no export needed)
+rkb add <url>   one link, any platform    (either; also what the bot calls)
 ```
 
-`add` never downloads. It records the row and stops; `rkb prepare` is a
-separate, deliberate act, because saving costs milliseconds and preparing costs
-a video download, ffmpeg, whisper and OCR on this machine.
+Two front doors put `add` within reach of your phone, both landing in the same
+place. `rkb telegram` runs a bot (stdlib only, no library): forward a post from
+the share sheet and it lands here. `rkb ingest --serve` is the same thing over
+HTTP, for an iOS Shortcut or a curl.
+
+**A front door is not a stage.** Neither one downloads, transcribes or reads
+anything. Saving costs milliseconds; preparing costs a video download, ffmpeg,
+whisper and OCR on this machine — so they are separate acts with separate
+triggers. A forwarded link lands at `new` and waits. Draining the queue is
+deliberate: `rkb prepare`, `/prepare` in the chat, or the button the bot puts
+on its reply. The extraction pass is still yours in Claude Code, on the
+subscription, rather than an LLM provider billing per token.
+
+One batch runs at a time (`worker.run_batch`). Two would fight over the same
+rows and fetch in parallel, which is what `prepare`'s sleep exists to prevent.
 
 `rkb/platforms.py` is the only place a platform is described. Adding a third
 source is a row in that table plus a branch in `acquire`, not a new pipeline.
@@ -149,6 +161,8 @@ Batch 20–30 posts per session.
 ./bin/rkb import --exclude food   # never import a collection
 ./bin/rkb add <url> [...]         # save a link (Instagram or X), no export
 ./bin/rkb bookmarks [-n 100]      # sweep the live X bookmark feed
+./bin/rkb telegram                # front door: forward a link, it lands here
+./bin/rkb ingest --serve          # same over HTTP (iOS Shortcut, curl)
 ./bin/rkb collections             # counts per collection
 ./bin/rkb prepare -n 25 [--retry] # download + frames + transcribe + OCR
 ./bin/rkb prepare --platform twitter   # ...one source only (instagram|twitter)
@@ -169,6 +183,10 @@ Batch 20–30 posts per session.
 
 ## Notes
 
+- **The Telegram bot's allowlist is not optional.** Anyone who finds the bot's
+  username can message it, and ingesting starts downloads on this machine, so
+  an unset `RKB_TELEGRAM_ALLOW` refuses everything and replies with the chat id
+  to add. Do not default it open.
 - **On X, cookies are not optional.** X serves a logged-out client almost
   nothing, so `bookmarks` refuses to run without them and `prepare` fails with
   that hint rather than a generic download error. `RKB_X_BROWSER` /

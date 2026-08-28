@@ -4,9 +4,9 @@ import json
 import sys
 from pathlib import Path
 
-from . import (config, dashboard, db, graph, importer, ingest, ocr, platforms,
-               prepare, record, review, search, serve, triage, vault,
-               vaultsync, verify)
+from . import (config, dashboard, db, graph, importer, ingest, ingestd, ocr,
+               platforms, prepare, record, review, search, serve, telegram,
+               triage, vault, vaultsync, verify)
 
 
 def cmd_init(a):
@@ -49,6 +49,18 @@ def cmd_bookmarks(a):
     if r["added"]:
         print("run `rkb prepare --platform twitter` to download them.")
 
+
+def cmd_ingest(a):
+    ingestd.serve(a.host, a.port)
+
+
+def cmd_telegram(a):
+    try:
+        telegram.run()
+    except KeyboardInterrupt:
+        print("\nstopped.")
+    except RuntimeError as e:
+        sys.exit(str(e))
 
 
 def cmd_collections(a):
@@ -335,6 +347,17 @@ def main(argv=None):
     s.add_argument("-n", "--limit", type=int, default=None,
                    help=f"how far back to walk (default: {config.X_BOOKMARK_LIMIT})")
     s.set_defaults(fn=cmd_bookmarks)
+
+    s = sub.add_parser("telegram", help="run the Telegram front door (forward "
+                                       "a link, it lands here)")
+    s.set_defaults(fn=cmd_telegram)
+
+    s = sub.add_parser("ingest", help="serve the HTTP front door (iOS Shortcut, curl)")
+    s.add_argument("--serve", action="store_true",
+                   help="run the endpoint (this command does nothing else)")
+    s.add_argument("--host", default=None)
+    s.add_argument("--port", type=int, default=None)
+    s.set_defaults(fn=cmd_ingest)
 
     sub.add_parser("collections", help="post counts per collection"
                    ).set_defaults(fn=cmd_collections)
