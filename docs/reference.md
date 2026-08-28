@@ -18,6 +18,12 @@ All via environment variables (see `rkb/config.py`):
 | `RKB_X_BROWSER` | falls back to `RKB_BROWSER` | cookie source for X only |
 | `RKB_X_COOKIES` | falls back to `RKB_COOKIES` | `cookies.txt` for X only |
 | `RKB_X_BOOKMARK_LIMIT` | `100` | how far back `rkb bookmarks` walks the feed |
+| `RKB_BATCH_LIMIT` | `25` | posts one `/prepare` or button tap drains |
+| `RKB_TELEGRAM_TOKEN` | *unset* | bot token from @BotFather; required by `rkb telegram` |
+| `RKB_TELEGRAM_ALLOW` | *unset* | chat ids allowed to use the bot; unset refuses everything |
+| `RKB_INGEST_HOST` | `127.0.0.1` | bind address for `rkb ingest --serve` |
+| `RKB_INGEST_PORT` | `8787` | its port |
+| `RKB_INGEST_TOKEN` | *unset* | shared secret; required if the host is not loopback |
 | `RKB_WHISPER` | `mlx-community/whisper-large-v3-turbo` | try `whisper-small-mlx` for speed |
 | `RKB_SLEEP` | `4` | seconds between downloads |
 | `RKB_OCR_FPS` | `2` | frames per second sampled for OCR |
@@ -67,6 +73,9 @@ rkb/
   platforms.py   the platform registry: URL shapes, vault folders, cookies
   importer.py    Meta export → posts
   ingest.py      a pasted link, or the X bookmark feed → posts
+  worker.py      runs one prepare batch at a time, off the calling thread
+  telegram.py    Telegram front door (stdlib urllib, no library)
+  ingestd.py     HTTP front door (iOS Shortcut, curl)
   acquire.py     yt-dlp / gallery-dl
   frames.py      ffmpeg sampling
   transcribe.py  mlx-whisper + hallucination guard

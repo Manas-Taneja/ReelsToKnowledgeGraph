@@ -4,6 +4,31 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def _load_env(path=ROOT / ".env"):
+    """Read KEY=value lines from .env, without adding a dependency.
+
+    Secrets that would otherwise live in your shell profile -- the Telegram bot
+    token, a cookies path -- belong in a file the repo already ignores. A real
+    environment variable always wins, so `RKB_X=1 ./bin/rkb ...` still overrides
+    for one run.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if val[:1] == val[-1:] and val[:1] in ("'", '"'):
+            val = val[1:-1]
+        os.environ.setdefault(key, val)
+
+
+_load_env()
 DATA = ROOT / "data"
 EXPORT_DIR = DATA / "export"
 MEDIA_DIR = DATA / "media"
@@ -84,3 +109,23 @@ STOPWORD_FRAC = float(os.environ.get("RKB_STOPWORD_FRAC", "0.5"))
 
 # Be a good citizen: these are your own cookies, so keep volume low.
 SLEEP_BETWEEN = float(os.environ.get("RKB_SLEEP", "4"))
+
+# How many posts one `/prepare` (or the button) drains by default. Matches the
+# `rkb prepare -n` default, so the chat and the CLI behave the same.
+BATCH_LIMIT = int(os.environ.get("RKB_BATCH_LIMIT", "25"))
+
+# The Telegram front door (`rkb telegram`). The token comes from @BotFather.
+# ALLOW is a list of chat ids permitted to use the bot -- unset refuses
+# everything, because anyone who finds the bot's username can message it and
+# ingesting starts downloads on this machine.
+TELEGRAM_TOKEN = os.environ.get("RKB_TELEGRAM_TOKEN", "").strip()
+TELEGRAM_ALLOW = os.environ.get("RKB_TELEGRAM_ALLOW", "").strip()
+
+# Where `rkb ingest --serve` listens. Loopback by default: this endpoint starts
+# downloads on your machine, so it should not be reachable from the network
+# without you deciding that explicitly.
+INGEST_HOST = os.environ.get("RKB_INGEST_HOST", "127.0.0.1")
+INGEST_PORT = int(os.environ.get("RKB_INGEST_PORT", "8787"))
+# Shared secret the plugin sends as X-RKB-Token. Empty disables the check,
+# which is only safe while the host stays on loopback.
+INGEST_TOKEN = os.environ.get("RKB_INGEST_TOKEN", "").strip()
